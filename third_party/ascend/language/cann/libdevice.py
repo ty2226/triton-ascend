@@ -287,6 +287,266 @@ def ffs(arg0, _builder=None):
         }, is_pure=True, _builder=_builder)
 
 @core.extern
+def brevll(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.brevll for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("int64"),): ("__hmf_brevll_i64", core.dtype("int64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def clzll(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.clzll for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("int64"),): ("__hmf_clzll_i64", core.dtype("int32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def ffsll(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.ffsll for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("int64"),): ("__hmf_ffsll_i64", core.dtype("int32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def float2half_rn(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.float2half_rn for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("fp32"),): ("__hmf_float2half_rn_fp32", core.dtype("fp16")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def fmaxf(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.fmaxf for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("fp32"), core.dtype("fp32")): ("__hmf_fmax_fp32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def fminf(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.fminf for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("fp32"), core.dtype("fp32")): ("__hmf_fmin_fp32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def half2float(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.half2float for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("fp16"),): ("__hmf_half2float_fp16", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def llabs(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.llabs for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("int64"),): ("__hmf_llabs_i64", core.dtype("int64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def llmax(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.llmax for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("int64"), core.dtype("int64")): ("__hmf_llmax_i64", core.dtype("int64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def llmin(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.llmin for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("int64"), core.dtype("int64")): ("__hmf_llmin_i64", core.dtype("int64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def max(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.max for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("int32"), core.dtype("int32")): ("__hmf_max_i32", core.dtype("int32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def min(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.min for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("int32"), core.dtype("int32")): ("__hmf_min_i32", core.dtype("int32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def mul64hi(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.mul64hi for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("int64"), core.dtype("int64")): ("__hmf_mul64hi_i64", core.dtype("int64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def nanf(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.nanf for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("fp32"),): ("__hmf_nanf_fp32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def popcll(arg0, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.popcll for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0], {
+            (core.dtype("int64"),): ("__hmf_popcll_i64", core.dtype("int32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def powif(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.powif for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("fp32"), core.dtype("int32")): ("__hmf_powif_fp32", core.dtype("fp32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def uhadd(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.uhadd for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint32"), core.dtype("uint32")): ("__hmf_uhadd_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def ullmax(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.ullmax for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint64"), core.dtype("uint64")): ("__hmf_ullmax_u64", core.dtype("uint64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def ullmin(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.ullmin for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint64"), core.dtype("uint64")): ("__hmf_ullmin_u64", core.dtype("uint64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def umax(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.umax for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint32"), core.dtype("uint32")): ("__hmf_umax_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def umin(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.umin for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint32"), core.dtype("uint32")): ("__hmf_umin_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def umul24(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.umul24 for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint32"), core.dtype("uint32")): ("__hmf_umul24_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def umul64hi(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.umul64hi for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint64"), core.dtype("uint64")): ("__hmf_umul64hi_u64", core.dtype("uint64")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def umulhi(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.umulhi for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint32"), core.dtype("uint32")): ("__hmf_umulhi_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def urhadd(arg0, arg1, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.urhadd for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1], {
+            (core.dtype("uint32"), core.dtype("uint32")): ("__hmf_urhadd_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
+def usad(arg0, arg1, arg2, _builder=None):
+    if not triton_enable_libdevice_simt():
+        core.static_print("livdevice.usad for simd is unspported for now.")
+        core.static_assert(False)
+    return core.extern_elementwise(
+        "", "", [arg0, arg1, arg2], {
+            (core.dtype("uint32"), core.dtype("uint32"), core.dtype("uint32")): ("__hmf_usad_u32", core.dtype("uint32")),
+        }, is_pure=True, _builder=_builder)
+
+@core.extern
 def saturatef(arg0, _builder=None):
     if not triton_enable_libdevice_simt():
         core.static_print("livdevice.saturatef for simd is unspported for now.")
