@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import os
 from math import pi as math_pi
 from triton.language import core, math, semantic, standard
 from triton._C.libtriton import ir
@@ -141,6 +142,9 @@ def flip(ptr, dim=-1, _semantic=None, _generator=None):
     dim = len(ptr.shape) - 1 if dim == -1 else dim
     return flip_impl(ptr, dim, _semantic.builder, _generator)
 
+def _triton_enable_libdevice_simt_for_shared_ops():
+    return os.getenv("TRITON_ENABLE_LIBDEVICE_SIMT", False)
+
 
 @core.extern
 def reciprocal(arg0, _semantic=None):
@@ -150,7 +154,7 @@ def reciprocal(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_reciprocal_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -169,7 +173,7 @@ def log1p(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_log1p_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -188,7 +192,7 @@ def relu(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_relu_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -207,7 +211,7 @@ def isinf(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_isinf_fp32", core.dtype("int1")),
         }, is_pure=True, _semantic=_semantic)
@@ -227,7 +231,7 @@ def tan(arg0, _semantic=None):
     :param arg0: The input tensor in radians. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_tan_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -246,7 +250,7 @@ def atan(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_atan_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -270,7 +274,7 @@ def tanh(arg0, _semantic=None):
     if original_dtype == core.dtype("bf16"):
         arg0 = _semantic.cast(arg0, core.float32)
 
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         dispatch = {
             (core.dtype("fp32"), ): ("__hmf_tanh_fp32", core.dtype("fp32")),
         }
@@ -294,7 +298,7 @@ def ilogb(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_ilogb_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -325,7 +329,7 @@ def ldexp(arg0, arg1, _semantic=None):
     :param arg1: The exponent tensor. Supported dtype: int32.
     :type arg1: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0, arg1], {
             (core.dtype("fp32"), core.dtype("int32")): ("__hmf_ldexp_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -417,7 +421,7 @@ def isnan(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_isnan_fp32", core.dtype("int1")),
         }, is_pure=True, _semantic=_semantic)
@@ -713,7 +717,7 @@ def div_rz(arg0, arg1, _semantic=None):
     :param arg1: The divisor tensor. Supported dtype: fp32.
     :type arg1: tl.tensor
     """
-    if not triton_enable_libdevice_simt():
+    if not _triton_enable_libdevice_simt_for_shared_ops():
         arg0 = _semantic.to_tensor(arg0)
         arg1 = _semantic.to_tensor(arg1)
         ret = _semantic.fdiv(arg0, arg1, False)
@@ -865,7 +869,7 @@ def fast_dividef(arg0, arg1, _semantic=None):
     :param arg1: The divisor tensor.
     :type arg1: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0, arg1], {
             (core.dtype("fp32"), core.dtype("fp32")): ("__hmf_fast_divide_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -883,7 +887,7 @@ def fast_expf(arg0, _semantic=None):
     :param arg0: The input tensor.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_fast_exp_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -992,7 +996,7 @@ def fmod(arg0, arg1, _semantic=None):
     :param arg1: The divisor tensor. Supported dtype: fp32.
     :type arg1: tl.tensor
     """
-    if not triton_enable_libdevice_simt():
+    if not _triton_enable_libdevice_simt_for_shared_ops():
         arg0 = _semantic.to_tensor(arg0)
         arg1 = _semantic.to_tensor(arg1)
         ret = _semantic.mod(arg0, arg1)
@@ -1020,7 +1024,7 @@ def float_as_int(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if not triton_enable_libdevice_simt():
+    if not _triton_enable_libdevice_simt_for_shared_ops():
         core.static_print("livdevice.float_as_int for simd is unspported for now.")
         core.static_assert(False)
     return core.extern_elementwise("", "", [arg0], {
@@ -1440,7 +1444,7 @@ def trunc(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise(
             "", "", [arg0], {
                 (core.dtype("fp16"), ): ("__hmf_trunc_fp16", core.dtype("fp16")),
@@ -1466,7 +1470,7 @@ def round(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_round_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -1485,10 +1489,15 @@ def acos(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if arg0.dtype == core.dtype("fp32") and is_compile_on_910_95():
-        return core.extern_elementwise("", "", [arg0], {
-            (core.dtype("fp32"), ): ("__hmf_acos_fp32", core.dtype("fp32")),
-        }, is_pure=True, _semantic=_semantic)
+    if _triton_enable_libdevice_simt_for_shared_ops():
+        if arg0.dtype == core.dtype("bf16"):
+            core.static_print("extern livdevice.acos for dtype bf16 is unspported for now.")
+            core.static_assert(False)
+        return core.extern_elementwise(
+            "", "", [arg0], {
+                (core.dtype("fp16"), ): ("__hmf_acos_fp16", core.dtype("fp16")),
+                (core.dtype("fp32"), ): ("__hmf_acos_fp32", core.dtype("fp32")),
+            }, is_pure=True, _semantic=_semantic)
     else:
         pi = 3.1415926536
         pi_half = 1.5707963268
@@ -1547,7 +1556,7 @@ def sinh(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.sinh for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1575,7 +1584,7 @@ def cosh(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.cosh for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1603,7 +1612,7 @@ def acosh(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.acosh for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1630,7 +1639,7 @@ def asinh(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.asinh for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1657,7 +1666,7 @@ def atanh(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.atanh for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1686,7 +1695,7 @@ def expm1(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.expm1 for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1713,10 +1722,12 @@ def nextafter(arg0: core.tensor, arg1: core.tensor, _semantic=None):
     :param arg1: The direction value tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg1: tl.tensor
     """
-    if arg0.dtype == core.dtype("fp32") and is_compile_on_910_95():
-        return core.extern_elementwise("", "", [arg0, arg1], {
-            (core.dtype("fp32"), core.dtype("fp32")): ("__hmf_nextafter_fp32", core.dtype("fp32")),
-        }, is_pure=True, _semantic=_semantic)
+    if _triton_enable_libdevice_simt_for_shared_ops():
+        return core.extern_elementwise(
+            "", "", [arg0, arg1], {
+                (core.dtype("fp16"), core.dtype("fp16")): ("__hmf_nextafter_fp16", core.dtype("fp16")),
+                (core.dtype("fp32"), core.dtype("fp32")): ("__hmf_nextafter_fp32", core.dtype("fp32")),
+            }, is_pure=True, _semantic=_semantic)
     else:
         x = _semantic.to_tensor(arg0)
         y = _semantic.to_tensor(arg1)
@@ -1763,7 +1774,7 @@ def hypot(arg0: core.tensor, arg1: core.tensor, _semantic=None):
     :param arg1: The second input tensor. Supported dtypes: fp32, fp16, bf16.
     :type arg1: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("bf16"):
             core.static_print("extern livdevice.hypot for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -1929,7 +1940,7 @@ def cyl_bessel_i0(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         if arg0.dtype == core.dtype("fp16"):
             core.static_print("extern livdevice.cyl_bessel_i0 for dtype bf16 is unspported for now.")
             core.static_assert(False)
@@ -2047,7 +2058,7 @@ def signbit(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtypes: fp32, fp16.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise(
             "", "", [arg0], {
                 (core.dtype("fp16"), ): ("__hmf_signbit_fp16", core.dtype("int32")),
@@ -2130,7 +2141,7 @@ def erfinv(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_erfinv_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -2269,7 +2280,7 @@ def gamma(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_tgamma_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -2346,7 +2357,7 @@ def lgamma(arg0, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_lgamma_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -2374,7 +2385,7 @@ def nearbyint(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_nearbyint_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -2457,7 +2468,7 @@ def asin(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise(
             "", "", [arg0], {
                 (core.dtype("fp16"), ): ("__hmf_asin_fp16", core.dtype("fp16")),
@@ -2490,7 +2501,7 @@ def log10(arg0: core.tensor, _semantic=None):
     :param arg0: The input tensor. Supported dtype: fp32.
     :type arg0: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0], {
             (core.dtype("fp32"), ): ("__hmf_log10_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -2523,7 +2534,7 @@ def copysign(arg0: core.tensor, arg1: core.tensor, _semantic=None):
     :param arg1: The sign tensor. Supported dtype: fp32.
     :type arg1: tl.tensor
     """
-    if triton_enable_libdevice_simt():
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [arg0, arg1], {
             (core.dtype("fp32"), core.dtype("fp32")): ("__hmf_copysign_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
@@ -2559,18 +2570,16 @@ def rint(arg0: core.tensor, _semantic=None):
     """
     Rounds the input tensor to the nearest integer using round-to-nearest-even.
 
-    :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
-    :type arg0: tl.tensor
-    """
-    arg0 = _semantic.to_tensor(arg0)
-    if is_compile_on_910_95():
-        if arg0.dtype != core.dtype("fp32"):
-            arg0 = _semantic.cast(arg0, core.dtype("fp32"))
+        :param arg0: The input tensor. Supported dtypes: fp32, fp16, bf16.
+        :type arg0: tl.tensor
+        """
+    if _triton_enable_libdevice_simt_for_shared_ops():
         return core.extern_elementwise("", "", [
             arg0,
         ], {
             (core.dtype("fp32"), ): ("__hmf_rint_fp32", core.dtype("fp32")),
         }, is_pure=True, _semantic=_semantic)
+    arg0 = _semantic.to_tensor(arg0)
 
     floor_x = math.floor(arg0, _semantic=_semantic)
     fractional = _semantic.sub(arg0, floor_x, True)

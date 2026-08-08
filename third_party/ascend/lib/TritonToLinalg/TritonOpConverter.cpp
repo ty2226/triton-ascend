@@ -33,6 +33,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVectorExtras.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -57,6 +58,7 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 
 #include "bishengir/Dialect/Annotation/IR/Annotation.h"
+#include "bishengir/Dialect/HACC/Utils/Utils.h"
 #include "bishengir/Dialect/HFusion/IR/HFusion.h"
 #include "bishengir/Dialect/HIVM/IR/HIVM.h"
 
@@ -1771,6 +1773,140 @@ LogicalResult ScanConverter::convertToTargetOpExtended(
   return success();
 }
 
+enum class A2A3WorkspaceElementType { F16, F32, I32 };
+
+enum class A2A3WorkspaceTileCount : int64_t {
+  One = 1,
+  Two = 2,
+  Three = 3,
+  Four = 4,
+  Five = 5,
+  Six = 6,
+};
+
+struct A2A3WorkspaceBufferSpec {
+  A2A3WorkspaceTileCount tileCount;
+  A2A3WorkspaceElementType elementType;
+  bool useOperationExtent = false;
+  int64_t fixedExtent = 64;
+};
+
+using A2A3WorkspaceSpec = SmallVector<A2A3WorkspaceBufferSpec, 3>;
+
+static const llvm::StringMap<A2A3WorkspaceSpec> &
+getA2A3LibdeviceWorkspaceSpecs() {
+  // A3 workspaces are described per operator. FP32 entry points process the
+  // complete operation in one invocation, so their rows follow the rounded
+  // operation extent. Operators whose CCE ABI has no workspace use an empty
+  // spec.
+  static const llvm::StringMap<A2A3WorkspaceSpec> specs = {
+      {"__hmf_tan_fp32",
+       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_tanh_fp32",
+       {{A2A3WorkspaceTileCount::Three, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_copysign_fp32",
+       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
+      {"__hmf_atan_fp32",
+       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_atan2_fp32",
+       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_ilogb_fp32",
+       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::I32, true}}},
+      {"__hmf_fmod_fp32",
+       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_isnan_fp32",
+       {}},
+      {"__hmf_asin_fp32",
+       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_acos_fp32",
+       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_sinh_fp32",
+       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_cosh_fp32",
+       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_atanh_fp32",
+       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_hypot_fp32",
+       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_cyl_bessel_i0_fp32",
+       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_erfinv_fp32",
+       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_tgamma_fp32",
+       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32, true}}},
+      {"__hmf_lgamma_fp32",
+       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32, true}}},
+  };
+  return specs;
+}
+
+static Type getWorkspaceElementType(A2A3WorkspaceElementType elementType,
+                                    Builder &builder) {
+  switch (elementType) {
+  case A2A3WorkspaceElementType::F16:
+    return builder.getF16Type();
+  case A2A3WorkspaceElementType::F32:
+    return builder.getF32Type();
+  case A2A3WorkspaceElementType::I32:
+    return builder.getI32Type();
+  }
+  llvm_unreachable("unknown A2/A3 workspace element type");
+}
+
+static LogicalResult addA2A3LibdeviceExtraBufferAttrs(
+    triton::ExternElementwiseOp op, hivm::CustomOp customOp,
+    ConversionPatternRewriter &rewriter) {
+  ModuleOp moduleOp = op->getParentOfType<ModuleOp>();
+  bool isA2OrA3 =
+      moduleOp && (hacc::utils::isAscend910B(moduleOp) ||
+                   hacc::utils::isAscend910_93(moduleOp));
+
+  // A5 libdevice implementations keep the original ABI and do not need
+  // workspace operands. Other targets are also intentionally unchanged.
+  if (compileOn91095Flag || !isA2OrA3)
+    return success();
+
+  auto specIt = getA2A3LibdeviceWorkspaceSpecs().find(op.getSymbol());
+  if (specIt == getA2A3LibdeviceWorkspaceSpecs().end())
+    return success();
+
+  const A2A3WorkspaceSpec &specs = specIt->getValue();
+  SmallVector<Attribute> bufferTypes;
+  SmallVector<Attribute> bufferSizes;
+  bufferTypes.reserve(specs.size());
+  bufferSizes.reserve(specs.size());
+
+  int64_t operationExtent = 0;
+  if (llvm::any_of(specs, [](const A2A3WorkspaceBufferSpec &spec) {
+        return spec.useOperationExtent;
+      })) {
+    auto resultType = dyn_cast<RankedTensorType>(op.getResult().getType());
+    if (!resultType || !resultType.hasStaticShape())
+      return op.emitError(
+          "A2/A3 libdevice operation-sized workspace requires a statically "
+          "shaped tensor result");
+    operationExtent = ((resultType.getNumElements() + 7) / 8) * 8;
+  }
+
+  for (const A2A3WorkspaceBufferSpec &spec : specs) {
+    int64_t tileCount = static_cast<int64_t>(spec.tileCount);
+    int64_t bufferExtent =
+        spec.useOperationExtent ? operationExtent : spec.fixedExtent;
+    bufferTypes.push_back(
+        TypeAttr::get(getWorkspaceElementType(spec.elementType, rewriter)));
+    bufferSizes.push_back(
+        rewriter.getI64IntegerAttr(tileCount * bufferExtent));
+  }
+
+  if (bufferTypes.empty())
+    return success();
+
+  customOp->setAttr("extra_buffers_types",
+                    rewriter.getArrayAttr(bufferTypes));
+  customOp->setAttr("extra_buffers_sizes",
+                    rewriter.getArrayAttr(bufferSizes));
+  return success();
+}
 LogicalResult ExternElementwiseClOpConverter::matchAndRewrite(
     triton::ExternElementwiseOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -1892,9 +2028,17 @@ LogicalResult ExternElementwiseClOpConverter::matchAndRewrite(
 
       std::string sym =
           llvm::join(llvm::split(op.getSymbol().str(), "__hmf_"), "");
+      SmallVector<Value> customOperands(collapsedInputs);
+      customOperands.push_back(outputTensor);
+      NamedAttrList customOpAttrs;
+      customOpAttrs.set("name", rewriter.getStringAttr(sym));
+      customOpAttrs.set(
+          "operandSegmentSizes",
+          rewriter.getDenseI32ArrayAttr(
+              {static_cast<int32_t>(collapsedInputs.size()), 1, 0}));
       auto customOp = rewriter.create<hivm::CustomOp>(
-          op.getLoc(), sym, ValueRange{collapsedInputs},
-          ValueRange{outputTensor});
+          op.getLoc(), TypeRange{customOutputType}, ValueRange{customOperands},
+          customOpAttrs.getAttrs());
 
       auto argAttrsArray = mlir::ArrayAttr::get(customOp->getContext(), {});
       auto pipeAttr =
@@ -1913,6 +2057,9 @@ LogicalResult ExternElementwiseClOpConverter::matchAndRewrite(
                         mlir::StringAttr::get(customOp->getContext(), sym));
       customOp->setAttr("arg_attrs", argAttrsArray);
       customOp.setInlineMode(hivm::InlineMode::AlwaysInline);
+
+      if (failed(addA2A3LibdeviceExtraBufferAttrs(op, customOp, rewriter)))
+        return failure();
 
       // Restore the result's shape and element type
       Value finalResult = customOp.getResults().front();
