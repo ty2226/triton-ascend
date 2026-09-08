@@ -30,31 +30,61 @@
 // A5-NOT: extra_buffers_
 // A5-SAME: symbol = "isinf_fp32"
 
-// A2/A3 FP32 libdevice entry points process the complete tensor in one
-// invocation. Workspace rows therefore scale with the tensor extent (rounded
-// to 8 elements), while row counts stay bounded per operator.
+// Arithmetic-only A2/A3 entry points can use operation-sized rows. Operators
+// with normal-mode compares process fixed 64-lane tiles, so their workspace
+// size is independent of the tensor extent.
 
 // A2A3-LABEL: func.func @test_tan_16
 // A2A3: hivm.hir.custom
-// A2A3-SAME: extra_buffers_sizes = [80]
+// A2A3-SAME: extra_buffers_sizes = [512]
 // A2A3-SAME: extra_buffers_types = [f32]
 // A2A3-SAME: symbol = "tan_fp32"
 
 // A2A3-LABEL: func.func @test_tan_2048
 // A2A3: hivm.hir.custom
-// A2A3-SAME: extra_buffers_sizes = [10240]
+// A2A3-SAME: extra_buffers_sizes = [512]
 // A2A3-SAME: extra_buffers_types = [f32]
 // A2A3-SAME: symbol = "tan_fp32"
 
 // A2A3-LABEL: func.func @test_atan2_2048
 // A2A3: hivm.hir.custom
-// A2A3-SAME: extra_buffers_sizes = [12288]
+// A2A3-SAME: extra_buffers_sizes = [640]
 // A2A3-SAME: extra_buffers_types = [f32]
 // A2A3-SAME: symbol = "atan2_fp32"
 
+// A2A3-LABEL: func.func @test_fast_pow_2048
+// A2A3: hivm.hir.custom
+// A2A3-SAME: extra_buffers_sizes = [512]
+// A2A3-SAME: extra_buffers_types = [f32]
+// A2A3-SAME: symbol = "fast_pow_fp32"
+
+// A2A3-LABEL: func.func @test_float2ull_rd_2048
+// A2A3: hivm.hir.custom
+// A2A3-SAME: extra_buffers_sizes = [320]
+// A2A3-SAME: extra_buffers_types = [i32]
+// A2A3-SAME: symbol = "float2ull_rd_fp32"
+
+// A2A3-LABEL: func.func @test_float2ull_rn_2048
+// A2A3: hivm.hir.custom
+// A2A3-SAME: extra_buffers_sizes = [320]
+// A2A3-SAME: extra_buffers_types = [i32]
+// A2A3-SAME: symbol = "float2ull_rn_fp32"
+
+// A2A3-LABEL: func.func @test_float2ull_ru_2048
+// A2A3: hivm.hir.custom
+// A2A3-SAME: extra_buffers_sizes = [320]
+// A2A3-SAME: extra_buffers_types = [i32]
+// A2A3-SAME: symbol = "float2ull_ru_fp32"
+
+// A2A3-LABEL: func.func @test_float2ull_rz_2048
+// A2A3: hivm.hir.custom
+// A2A3-SAME: extra_buffers_sizes = [320]
+// A2A3-SAME: extra_buffers_types = [i32]
+// A2A3-SAME: symbol = "float2ull_rz_fp32"
+
 // A2A3-LABEL: func.func @test_tgamma_2048
 // A2A3: hivm.hir.custom
-// A2A3-SAME: extra_buffers_sizes = [12288]
+// A2A3-SAME: extra_buffers_sizes = [576]
 // A2A3-SAME: extra_buffers_types = [f32]
 // A2A3-SAME: symbol = "tgamma_fp32"
 
@@ -111,6 +141,50 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
       libname = "", libpath = "", pure = true, symbol = "__hmf_atan2_fp32"
     } : (tensor<2048xf32>, tensor<2048xf32>) -> tensor<2048xf32>
     tt.return %0 : tensor<2048xf32>
+  }
+
+  tt.func @test_fast_pow_2048(%arg0: tensor<2048xf32>,
+                               %arg1: tensor<2048xf32>) -> tensor<2048xf32> {
+    %0 = tt.extern_elementwise %arg0, %arg1 {
+      libname = "", libpath = "", pure = true, symbol = "__hmf_fast_pow_fp32"
+    } : (tensor<2048xf32>, tensor<2048xf32>) -> tensor<2048xf32>
+    tt.return %0 : tensor<2048xf32>
+  }
+
+  tt.func @test_float2ull_rd_2048(%arg0: tensor<2048xf32>)
+      -> tensor<2048xi64> {
+    %0 = tt.extern_elementwise %arg0 {
+      libname = "", libpath = "", pure = true,
+      symbol = "__hmf_float2ull_rd_fp32"
+    } : (tensor<2048xf32>) -> tensor<2048xi64>
+    tt.return %0 : tensor<2048xi64>
+  }
+
+  tt.func @test_float2ull_rn_2048(%arg0: tensor<2048xf32>)
+      -> tensor<2048xi64> {
+    %0 = tt.extern_elementwise %arg0 {
+      libname = "", libpath = "", pure = true,
+      symbol = "__hmf_float2ull_rn_fp32"
+    } : (tensor<2048xf32>) -> tensor<2048xi64>
+    tt.return %0 : tensor<2048xi64>
+  }
+
+  tt.func @test_float2ull_ru_2048(%arg0: tensor<2048xf32>)
+      -> tensor<2048xi64> {
+    %0 = tt.extern_elementwise %arg0 {
+      libname = "", libpath = "", pure = true,
+      symbol = "__hmf_float2ull_ru_fp32"
+    } : (tensor<2048xf32>) -> tensor<2048xi64>
+    tt.return %0 : tensor<2048xi64>
+  }
+
+  tt.func @test_float2ull_rz_2048(%arg0: tensor<2048xf32>)
+      -> tensor<2048xi64> {
+    %0 = tt.extern_elementwise %arg0 {
+      libname = "", libpath = "", pure = true,
+      symbol = "__hmf_float2ull_rz_fp32"
+    } : (tensor<2048xf32>) -> tensor<2048xi64>
+    tt.return %0 : tensor<2048xi64>
   }
 
   tt.func @test_tgamma_2048(%arg0: tensor<2048xf32>) -> tensor<2048xf32> {
