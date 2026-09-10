@@ -869,7 +869,7 @@ def cann_version_compile_args():
 
 def triton_enable_libdevice_simt(arch: str = None) -> bool:
     """Return whether the environment switch selects SIMT libdevice."""
-    return bool(os.getenv("TRITON_ENABLE_LIBDEVICE_SIMT", False)) and is_compile_on_910_95(arch)
+    return bool(os.getenv("TRITON_ENABLE_LIBDEVICE_SIMT", False)) # and is_compile_on_910_95(arch)
 
 
 def get_cann_version_file_hash():

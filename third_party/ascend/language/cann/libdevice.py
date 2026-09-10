@@ -32,7 +32,8 @@ def _is_libdevice_simt_enabled(_semantic) -> bool:
 
 
 def _is_a5_target(_semantic) -> bool:
-    return is_compile_on_910_95(_semantic.builder.options.arch)
+    # return is_compile_on_910_95(_semantic.builder.options.arch)
+    return True
 
 
 def _deprecated(replacement):
