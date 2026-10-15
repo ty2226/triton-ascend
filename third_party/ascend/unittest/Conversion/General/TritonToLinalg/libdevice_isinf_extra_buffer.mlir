@@ -30,6 +30,8 @@
 // A5-NOT: extra_buffers_
 // A5-SAME: symbol = "isinf_fp32"
 
+// Workspace attributes are produced by the Python frontend. This fixture
+// supplies them explicitly to check conversion passthrough.
 // Arithmetic-only A2/A3 entry points can use operation-sized rows. Operators
 // with normal-mode compares process fixed 64-lane tiles, so their workspace
 // size is independent of the tensor extent.
@@ -94,7 +96,7 @@
 // A2A3-SAME: extra_buffers_types = [i32]
 // A2A3-SAME: symbol = "copysign_fp32"
 
-// A5-LABEL: func.func @test_tan_16
+// A5-LABEL: func.func @test_tan_no_metadata_16
 // A5: hivm.hir.custom
 // A5-NOT: extra_buffers_
 // A5-SAME: symbol = "tan_fp32"
@@ -123,14 +125,16 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
 
   tt.func @test_tan_16(%arg0: tensor<16xf32>) -> tensor<16xf32> {
     %0 = tt.extern_elementwise %arg0 {
-      libname = "", libpath = "", pure = true, symbol = "__hmf_tan_fp32"
+      libname = "", libpath = "", pure = true, symbol = "__hmf_tan_fp32",
+      extra_buffers_types = [f32], extra_buffers_sizes = [512]
     } : (tensor<16xf32>) -> tensor<16xf32>
     tt.return %0 : tensor<16xf32>
   }
 
   tt.func @test_tan_2048(%arg0: tensor<2048xf32>) -> tensor<2048xf32> {
     %0 = tt.extern_elementwise %arg0 {
-      libname = "", libpath = "", pure = true, symbol = "__hmf_tan_fp32"
+      libname = "", libpath = "", pure = true, symbol = "__hmf_tan_fp32",
+      extra_buffers_types = [f32], extra_buffers_sizes = [512]
     } : (tensor<2048xf32>) -> tensor<2048xf32>
     tt.return %0 : tensor<2048xf32>
   }
@@ -138,7 +142,8 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
   tt.func @test_atan2_2048(%arg0: tensor<2048xf32>,
                             %arg1: tensor<2048xf32>) -> tensor<2048xf32> {
     %0 = tt.extern_elementwise %arg0, %arg1 {
-      libname = "", libpath = "", pure = true, symbol = "__hmf_atan2_fp32"
+      libname = "", libpath = "", pure = true, symbol = "__hmf_atan2_fp32",
+      extra_buffers_types = [f32], extra_buffers_sizes = [640]
     } : (tensor<2048xf32>, tensor<2048xf32>) -> tensor<2048xf32>
     tt.return %0 : tensor<2048xf32>
   }
@@ -146,7 +151,8 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
   tt.func @test_fast_pow_2048(%arg0: tensor<2048xf32>,
                                %arg1: tensor<2048xf32>) -> tensor<2048xf32> {
     %0 = tt.extern_elementwise %arg0, %arg1 {
-      libname = "", libpath = "", pure = true, symbol = "__hmf_fast_pow_fp32"
+      libname = "", libpath = "", pure = true, symbol = "__hmf_fast_pow_fp32",
+      extra_buffers_types = [f32], extra_buffers_sizes = [512]
     } : (tensor<2048xf32>, tensor<2048xf32>) -> tensor<2048xf32>
     tt.return %0 : tensor<2048xf32>
   }
@@ -155,7 +161,8 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
       -> tensor<2048xi64> {
     %0 = tt.extern_elementwise %arg0 {
       libname = "", libpath = "", pure = true,
-      symbol = "__hmf_float2ull_rd_fp32"
+      symbol = "__hmf_float2ull_rd_fp32",
+      extra_buffers_types = [i32], extra_buffers_sizes = [320]
     } : (tensor<2048xf32>) -> tensor<2048xi64>
     tt.return %0 : tensor<2048xi64>
   }
@@ -164,7 +171,8 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
       -> tensor<2048xi64> {
     %0 = tt.extern_elementwise %arg0 {
       libname = "", libpath = "", pure = true,
-      symbol = "__hmf_float2ull_rn_fp32"
+      symbol = "__hmf_float2ull_rn_fp32",
+      extra_buffers_types = [i32], extra_buffers_sizes = [320]
     } : (tensor<2048xf32>) -> tensor<2048xi64>
     tt.return %0 : tensor<2048xi64>
   }
@@ -173,7 +181,8 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
       -> tensor<2048xi64> {
     %0 = tt.extern_elementwise %arg0 {
       libname = "", libpath = "", pure = true,
-      symbol = "__hmf_float2ull_ru_fp32"
+      symbol = "__hmf_float2ull_ru_fp32",
+      extra_buffers_types = [i32], extra_buffers_sizes = [320]
     } : (tensor<2048xf32>) -> tensor<2048xi64>
     tt.return %0 : tensor<2048xi64>
   }
@@ -182,14 +191,16 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
       -> tensor<2048xi64> {
     %0 = tt.extern_elementwise %arg0 {
       libname = "", libpath = "", pure = true,
-      symbol = "__hmf_float2ull_rz_fp32"
+      symbol = "__hmf_float2ull_rz_fp32",
+      extra_buffers_types = [i32], extra_buffers_sizes = [320]
     } : (tensor<2048xf32>) -> tensor<2048xi64>
     tt.return %0 : tensor<2048xi64>
   }
 
   tt.func @test_tgamma_2048(%arg0: tensor<2048xf32>) -> tensor<2048xf32> {
     %0 = tt.extern_elementwise %arg0 {
-      libname = "", libpath = "", pure = true, symbol = "__hmf_tgamma_fp32"
+      libname = "", libpath = "", pure = true, symbol = "__hmf_tgamma_fp32",
+      extra_buffers_types = [f32], extra_buffers_sizes = [576]
     } : (tensor<2048xf32>) -> tensor<2048xf32>
     tt.return %0 : tensor<2048xf32>
   }
@@ -198,8 +209,20 @@ module attributes {hacc.target = #hacc.target<"Ascend910B2">} {
                                %arg1: tensor<2048xf32>) -> tensor<2048xf32> {
     %0 = tt.extern_elementwise %arg0, %arg1 {
       libname = "", libpath = "", pure = true,
-      symbol = "__hmf_copysign_fp32"
+      symbol = "__hmf_copysign_fp32",
+      extra_buffers_types = [i32], extra_buffers_sizes = [2048]
     } : (tensor<2048xf32>, tensor<2048xf32>) -> tensor<2048xf32>
     tt.return %0 : tensor<2048xf32>
+  }
+  // With no frontend metadata, the converter must not infer a workspace.
+  // A2A3-LABEL: func.func @test_tan_no_metadata_16
+  // A2A3: hivm.hir.custom
+  // A2A3-NOT: extra_buffers_
+  // A2A3-SAME: symbol = "tan_fp32"
+  tt.func @test_tan_no_metadata_16(%arg0: tensor<16xf32>) -> tensor<16xf32> {
+    %0 = tt.extern_elementwise %arg0 {
+      libname = "", libpath = "", pure = true, symbol = "__hmf_tan_fp32"
+    } : (tensor<16xf32>) -> tensor<16xf32>
+    tt.return %0 : tensor<16xf32>
   }
 }
