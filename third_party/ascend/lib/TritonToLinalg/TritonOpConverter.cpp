@@ -35,7 +35,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVectorExtras.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -60,7 +59,6 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 
 #include "bishengir/Dialect/Annotation/IR/Annotation.h"
-#include "bishengir/Dialect/HACC/Utils/Utils.h"
 #include "bishengir/Dialect/HFusion/IR/HFusion.h"
 #include "bishengir/Dialect/HIVM/IR/HIVM.h"
 #include "bishengir/Dialect/Scope/IR/Scope.h"
@@ -2140,298 +2138,6 @@ LogicalResult ScanConverter::convertToTargetOpExtended(
   return success();
 }
 
-enum class A2A3WorkspaceElementType { F16, F32, I32 };
-
-enum class A2A3WorkspaceTileCount : int64_t {
-  One = 1,
-  Two = 2,
-  Three = 3,
-  Four = 4,
-  Five = 5,
-  Six = 6,
-  Seven = 7,
-  Eight = 8,
-  Nine = 9,
-  Ten = 10,
-  Twelve = 12,
-  Fourteen = 14,
-};
-
-struct A2A3WorkspaceBufferSpec {
-  A2A3WorkspaceTileCount tileCount;
-  A2A3WorkspaceElementType elementType;
-  bool useOperationExtent = false;
-  int64_t fixedExtent = 64;
-};
-
-using A2A3WorkspaceSpec = SmallVector<A2A3WorkspaceBufferSpec, 3>;
-
-static const llvm::StringMap<A2A3WorkspaceSpec> &
-getA2A3LibdeviceWorkspaceSpecs() {
-  // A3 workspaces are described per operator. Arithmetic-only entry points can
-  // use rows sized to the rounded operation extent; normal-mode compare paths
-  // use fixed 64-lane rows. Operators whose CCE ABI has no workspace use an
-  // empty spec.
-  static const llvm::StringMap<A2A3WorkspaceSpec> specs = {
-      {"__hmf_tan_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32}}},
-      {"__hmf_tanh_fp32",
-       {{A2A3WorkspaceTileCount::Three, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_copysign_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_atan_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_atan2_fp32",
-       {{A2A3WorkspaceTileCount::Ten, A2A3WorkspaceElementType::F32}}},
-      {"__hmf_acosh_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_asinh_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_nextafter_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::I32}}},
-      {"__hmf_pow_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32}}},
-      {"__hmf_nearbyint_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_rint_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_round_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_trunc_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_ilogb_fp32",
-       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_fmod_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_isnan_fp32",
-       {}},
-      {"__hmf_asin_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_acos_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_sinh_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_cosh_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_atanh_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_hypot_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_cyl_bessel_i0_fp32",
-       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32}}},
-      {"__hmf_erfinv_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_tgamma_fp32",
-       {{A2A3WorkspaceTileCount::Nine, A2A3WorkspaceElementType::F32}}},
-      {"__hmf_lgamma_fp32",
-       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_brev_i32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::I32, true}}},
-      {"__hmf_byte_perm_i32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_ceil_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-      {"__hmf_clz_i32",
-       {{A2A3WorkspaceTileCount::Nine, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_cos_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_cospi_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_cyl_bessel_i1_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_erfc_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_erf_fp32",
-       {{A2A3WorkspaceTileCount::Three, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_erfcinv_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_erfcx_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fast_cos_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fast_pow_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32}}},
-    {"__hmf_fast_sin_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fast_tan_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fast_tanh_fp32",
-       {{A2A3WorkspaceTileCount::Three, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fdim_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_ffs_i32",
-       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_float2uint_rd_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_float2uint_rn_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_float2uint_ru_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_float2uint_rz_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_float2ull_rd_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32}}},
-    {"__hmf_float2ull_rn_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32}}},
-    {"__hmf_float2ull_ru_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32}}},
-    {"__hmf_float2ull_rz_fp32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32}}},
-    {"__hmf_floor_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_hadd_i32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_uhadd_u32_u32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_j0_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_j1_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_jn_fp32",
-       {{A2A3WorkspaceTileCount::Seven, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_logb_fp32",
-       {{A2A3WorkspaceTileCount::Three, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fmax_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_fmin_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_mul24_i32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_umul24_u32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_mulhi_i32",
-       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_umulhi_u32",
-       {{A2A3WorkspaceTileCount::Six, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_norm3d_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_norm4d_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_normcdf_fp32",
-       {{A2A3WorkspaceTileCount::Three, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_normcdfinv_fp32",
-       {{A2A3WorkspaceTileCount::Ten, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_popc_i32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_rcbrt_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_remainder_fp32",
-       {{A2A3WorkspaceTileCount::Eight, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_rhadd_i32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_urhadd_u32_u32",
-       {{A2A3WorkspaceTileCount::Five, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_rhypot_fp32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_rnorm3d_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_rnorm4d_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_rsqrt_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_rsqrt_rn_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_sad_i32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_usad_u32",
-       {{A2A3WorkspaceTileCount::Two, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_sin_fp32",
-       {{A2A3WorkspaceTileCount::Four, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_sinpi_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_uint2float_rd_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_uint2float_rz_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_uint2float_ru_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_uint2float_rn_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_ull2float_rd_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_ull2float_ru_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_ull2float_rn_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_ull2float_rz_fp32",
-       {{A2A3WorkspaceTileCount::One, A2A3WorkspaceElementType::I32, true}}},
-    {"__hmf_y0_fp32",
-       {{A2A3WorkspaceTileCount::Twelve, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_y1_fp32",
-       {{A2A3WorkspaceTileCount::Twelve, A2A3WorkspaceElementType::F32, true}}},
-    {"__hmf_yn_fp32",
-       {{A2A3WorkspaceTileCount::Fourteen, A2A3WorkspaceElementType::F32, true}}},
-  };
-  return specs;
-}
-
-static Type getWorkspaceElementType(A2A3WorkspaceElementType elementType,
-                                    Builder &builder) {
-  switch (elementType) {
-  case A2A3WorkspaceElementType::F16:
-    return builder.getF16Type();
-  case A2A3WorkspaceElementType::F32:
-    return builder.getF32Type();
-  case A2A3WorkspaceElementType::I32:
-    return builder.getI32Type();
-  }
-  llvm_unreachable("unknown A2/A3 workspace element type");
-}
-
-static LogicalResult addA2A3LibdeviceExtraBufferAttrs(
-    triton::ExternElementwiseOp op, hivm::CustomOp customOp,
-    ConversionPatternRewriter &rewriter) {
-  ModuleOp moduleOp = op->getParentOfType<ModuleOp>();
-  bool isA2OrA3 =
-      moduleOp && (hacc::utils::isAscend910B(moduleOp) ||
-                   hacc::utils::isAscend910_93(moduleOp));
-
-  // A5 libdevice implementations keep the original ABI and do not need
-  // workspace operands. Other targets are also intentionally unchanged.
-  if (compileOn91095Flag || !isA2OrA3)
-    return success();
-
-  auto specIt = getA2A3LibdeviceWorkspaceSpecs().find(op.getSymbol());
-  if (specIt == getA2A3LibdeviceWorkspaceSpecs().end())
-    return success();
-
-  const A2A3WorkspaceSpec &specs = specIt->getValue();
-  SmallVector<Attribute> bufferTypes;
-  SmallVector<Attribute> bufferSizes;
-  bufferTypes.reserve(specs.size());
-  bufferSizes.reserve(specs.size());
-
-  int64_t operationExtent = 0;
-  if (llvm::any_of(specs, [](const A2A3WorkspaceBufferSpec &spec) {
-        return spec.useOperationExtent;
-      })) {
-    auto resultType = dyn_cast<RankedTensorType>(op.getResult().getType());
-    if (!resultType || !resultType.hasStaticShape())
-      return op.emitError(
-          "A2/A3 libdevice operation-sized workspace requires a statically "
-          "shaped tensor result");
-    operationExtent = ((resultType.getNumElements() + 7) / 8) * 8;
-  }
-
-  for (const A2A3WorkspaceBufferSpec &spec : specs) {
-    int64_t tileCount = static_cast<int64_t>(spec.tileCount);
-    int64_t bufferExtent =
-        spec.useOperationExtent ? operationExtent : spec.fixedExtent;
-    bufferTypes.push_back(
-        TypeAttr::get(getWorkspaceElementType(spec.elementType, rewriter)));
-    bufferSizes.push_back(
-        rewriter.getI64IntegerAttr(tileCount * bufferExtent));
-  }
-
-  if (bufferTypes.empty())
-    return success();
-
-  customOp->setAttr("extra_buffers_types",
-                    rewriter.getArrayAttr(bufferTypes));
-  customOp->setAttr("extra_buffers_sizes",
-                    rewriter.getArrayAttr(bufferSizes));
-  return success();
-}
 LogicalResult ExternElementwiseClOpConverter::matchAndRewrite(
     triton::ExternElementwiseOp op, OpAdaptor adaptor,
     ConversionPatternRewriter &rewriter) const {
@@ -2583,8 +2289,11 @@ LogicalResult ExternElementwiseClOpConverter::matchAndRewrite(
       customOp->setAttr("arg_attrs", argAttrsArray);
       customOp.setInlineMode(hivm::InlineMode::AlwaysInline);
 
-      if (failed(addA2A3LibdeviceExtraBufferAttrs(op, customOp, rewriter)))
-        return failure();
+      // The frontend owns the libdevice workspace ABI and size calculation.
+      for (StringRef name : {"extra_buffers_types", "extra_buffers_sizes"}) {
+        if (Attribute attr = op->getAttr(name))
+          customOp->setAttr(name, attr);
+      }
 
       // Restore the result's shape and element type
       Value finalResult = customOp.getResults().front();
